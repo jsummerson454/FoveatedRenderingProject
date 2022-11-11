@@ -1,0 +1,31 @@
+#version 330 core
+
+#define NUM_LAYERS 4
+#define BLENDING_CUTOFF 0.6
+
+in vec2 texCoords;
+
+out vec4 FragColor;
+
+uniform sampler2D textures[NUM_LAYERS];
+
+uniform vec2 screenSize;
+
+//format of each entry in the boundaries array is (lowerX, upperX, lowerY, upperY)
+//highest index element is fovea (innermost) layer
+uniform vec4 boundaries[NUM_LAYERS-1];
+
+
+void main()
+{
+	FragColor = texture(textures[0], texCoords);
+	
+	float r = length((texCoords-0.5)*screenSize);
+	for (int i=0; i<NUM_LAYERS-1; i++) {
+		float r_i = min((boundaries[i].y - 0.5) * screenSize.x, (boundaries[i].w - 0.5) * screenSize.y);
+		if (r < r_i) {
+			vec2 newCoords = vec2((texCoords.x-boundaries[i].x)/(boundaries[i].y-boundaries[i].x), (texCoords.y-boundaries[i].z)/(boundaries[i].w-boundaries[i].z));			
+			FragColor = mix(texture(textures[i + 1], newCoords), FragColor, smoothstep(BLENDING_CUTOFF, 1.0, r/r_i));
+		}
+	}
+}

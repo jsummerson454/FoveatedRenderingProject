@@ -1,0 +1,95 @@
+#version 330 core
+
+#define NUM_LIGHTS 10
+
+struct PointLightSource {
+	vec3 pos;
+
+	vec3 diffuse;
+	vec3 specular;
+
+	//attenuation coefficients for point lights
+	float constant;
+	float linear;
+	float quadratic;
+};
+
+struct GlobalLight {
+	vec3 direction;
+
+	vec3 ambient;
+	vec3 diffuse;
+	vec3 specular;
+};
+
+
+out vec4 FragColor;
+
+in vec3 normal;
+in vec3 fragPos;
+in vec2 texCoords;
+
+uniform vec3 camPos;
+uniform GlobalLight globalLight;
+uniform PointLightSource[NUM_LIGHTS] lights;
+
+uniform sampler2D diffuseMap;
+uniform bool diffuseEnabled;
+
+uniform sampler2D specularMap;
+uniform bool specularEnabled;
+
+uniform vec3 objectColour;
+uniform float shininess;
+
+void main()
+{
+	//calculating vectors needed for lighting:
+	vec3 n = normalize(normal);
+	//reverse (and normalise) globalLight.direction since we want lightDir to point towards the light source
+	vec3 lightDir = normalize(-globalLight.direction);
+	vec3 camDir = normalize(camPos - fragPos);
+	vec3 reflectDir = reflect(-lightDir, n);
+	
+	//GLOBAL ILLUMINATION:
+	vec3 ambient = globalLight.ambient;
+
+	float diff = max(dot(n, lightDir), 0.0);
+	vec3 diffuse = globalLight.diffuse * diff;
+
+	float spec = pow(max(dot(camDir, reflectDir), 0.0), shininess);
+	vec3 specular = globalLight.specular * spec;
+	
+	//POINT LIGHTING:
+	for (int i = 0; i < NUM_LIGHTS; i++) {
+		//calculate attenuation first, then apply to all the light contributions
+		float d = length(lights[i].pos - fragPos);
+		float attenuation = 1.0 / (lights[i].constant + lights[i].linear * d + lights[i].quadratic * d * d);
+		//recompute the necessary lighting vectors
+		lightDir = normalize(lights[i].pos - fragPos);
+		vec3 reflectDir = reflect(-lightDir, n);
+		
+		diff = max(dot(n, lightDir), 0.0);
+		diffuse += lights[i].diffuse * diff * attenuation;
+		
+		spec = pow(max(dot(camDir, reflectDir), 0.0), shininess);
+		specular += lights[i].specular * spec * attenuation;
+		
+	}
+	
+	if (diffuseEnabled) {
+		ambient *= vec3(texture(diffuseMap, texCoords));
+		diffuse *= vec3(texture(diffuseMap, texCoords));
+	} else {
+		ambient *= objectColour;
+		diffuse *= objectColour;
+	}
+	
+	//implicitly assumed that if no specular map is given the object is specular (shiny) all over based on the shininess coefficient provided by the material
+	if (specularEnabled) {
+		specular *= vec3(texture(specularMap, texCoords));
+	}
+
+	vec3 result = (ambient + diffuse + specular);
+	FragColor = vec4(result, 1.0f);
+}

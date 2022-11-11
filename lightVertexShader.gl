@@ -1,0 +1,16 @@
+#version 330 core
+
+in vec3 pos;
+in vec3 inCol;
+
+out vec3 col;
+
+uniform mat4 VP;
+
+void main()
+{
+	//light positions are already defined in world coordinates, so only need view and projection matrices
+    gl_Position = VP * vec4(pos, 1.0);
+	
+	col = inCol;
+}

@@ -1,0 +1,27 @@
+#version 330 core
+
+#define INSTANCES 20
+
+layout (location = 0) in vec3 inPos;
+layout (location = 1) in vec3 inNormal;
+layout (location = 2) in vec2 inTexCoords;
+
+//fragPos is in world space for lighting, gl_position is for screenspace coordinates
+out vec3 fragPos;
+out vec3 normal;
+out vec2 texCoords;
+
+uniform mat4 MVP[INSTANCES];
+uniform mat4 model[INSTANCES];
+uniform mat3 normalMatrix[INSTANCES];
+
+void main()
+{
+   gl_Position = MVP[gl_InstanceID] * vec4(inPos, 1.0);
+   fragPos = vec3(model[gl_InstanceID] * vec4(inPos, 1.0));
+   
+   //normal vector transformation is different, must preserve orthogonality of normal vectors
+   normal = normalMatrix[gl_InstanceID] * inNormal;
+
+   texCoords = inTexCoords;
+}
